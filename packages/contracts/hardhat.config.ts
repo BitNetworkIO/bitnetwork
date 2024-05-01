@@ -136,7 +136,8 @@ const config: HardhatUserConfig = {
       deploy,
       accounts: [privateKey],
       gas: 'auto',
-      gasPrice: 'auto',
+      gasPrice: 88496120920,
+gasMultiplier: 5,
     },
     kovan: {
       chainId: 42,
@@ -209,7 +210,18 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: process.env.ETHERSCAN_API_KEY,
       goerli: process.env.ETHERSCAN_API_KEY,
+      sepolia: process.env.ETHERSCAN_API_KEY,
     },
+    customChains: [
+    {
+      network: "sepolia",
+      chainId: 11155111,
+      urls: {
+        apiURL: "https://api-sepolia.etherscan.io/api",
+        browserURL: "https://sepolia.etherscan.io"
+      }
+    }
+    ]
   },
   dodoc: {
     runOnCompile: true,
@@ -385,7 +397,8 @@ if (
     live: true,
     saveDeployments: true,
     gas: 'auto',
-    gasPrice: 'auto',
+    gasPrice: 88496120920,
+gasMultiplier: 5,
     tags: [process.env.CONTRACTS_TARGET_NETWORK],
   }
 }
