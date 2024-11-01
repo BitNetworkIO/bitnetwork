@@ -23,14 +23,37 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/mantlenetworkio/mantle/l2geth/log"
 )
+
+func init() {
+	// https://pkg.go.dev/runtime#hdr-Environment_Variables
+	// GOTRACEBACK=crash is like “system” but crashes in an operating system-specific manner instead of exiting.
+	// For example, on Unix systems, the crash raises SIGABRT to trigger a core dump.
+	debug.SetTraceback("crash")
+
+	// https://linux.die.net/man/2/setrlimit
+	var rLimit syscall.Rlimit
+	rLimit.Max = syscall.RLIM_INFINITY
+	rLimit.Cur = syscall.RLIM_INFINITY
+	err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	if err != nil {
+		fmt.Println("Error Setting Rlimit ", err)
+	}
+	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
+	if err != nil {
+		fmt.Println("Error Getting Rlimit ", err)
+	}
+	fmt.Println("Rlimit Final", rLimit)
+}
 
 // handler handles JSON-RPC messages. There is one handler per connection. Note that
 // handler is not safe for concurrent use. Message handling never blocks indefinitely
@@ -309,7 +332,7 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 			runtime.ReadMemStats(&m)
 			alloc := m.Alloc - beforeAlloc
 			if printMemStatus {
-				h.log.Info("read mem stats", "reqid", reqid, "alloc", alloc)
+				h.log.Info("read mem stats", "reqid", reqid, "alloc", alloc, "prevAlloc", beforeAlloc, "nowAlloc", m.Alloc)
 			}
 			// Sample large requests
 			if alloc > 1024*1024 { // If single call allocates more than 1MB
@@ -325,14 +348,14 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 		var ctx []interface{}
 		ctx = append(ctx, "reqid", idForLog{msg.ID}, "duration", time.Since(start))
 		if resp.Error != nil {
-			ctx = append(ctx, "err", resp.Error.Message)
+			ctx = append(ctx, "err", resp.Error.Message, "msg", msg)
 			if resp.Error.Data != nil {
 				ctx = append(ctx, "errdata", resp.Error.Data)
 			}
+			h.log.Warn("Served "+msg.Method, ctx...)
 			printMemStatus = true
-			h.log.Warn("Served "+msg.Method, "reqid", idForLog{msg.ID}, "t", time.Since(start), "err", resp.Error.Message, "msg", msg)
 		} else {
-			h.log.Debug("Served "+msg.Method, "reqid", idForLog{msg.ID}, "t", time.Since(start))
+			h.log.Debug("Served "+msg.Method, ctx...)
 		}
 		return resp
 	case msg.hasValidID():
