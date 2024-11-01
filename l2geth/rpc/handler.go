@@ -19,7 +19,11 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"reflect"
+	"runtime"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
@@ -294,6 +298,29 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 		h.log.Debug("Served "+msg.Method, "t", time.Since(start))
 		return nil
 	case msg.isCall():
+		var printMemStatus bool
+		// Add memory statistics
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		beforeAlloc := m.Alloc
+
+		defer func() {
+			reqid := idForLog{msg.ID}
+			runtime.ReadMemStats(&m)
+			alloc := m.Alloc - beforeAlloc
+			if printMemStatus {
+				h.log.Info("read mem stats", "reqid", reqid, "alloc", alloc)
+			}
+			// Sample large requests
+			if alloc > 1024*1024 { // If single call allocates more than 1MB
+				pprofFilename := fmt.Sprintf("heap_%s_%d.prof", reqid, time.Now().Unix())
+				f, _ := os.Create(pprofFilename)
+				pprof.WriteHeapProfile(f)
+				f.Close()
+				h.log.Warn("large memory allocation", "reqid", reqid, "pprof", pprofFilename, "alloc", alloc)
+			}
+		}()
+
 		resp := h.handleCall(ctx, msg)
 		var ctx []interface{}
 		ctx = append(ctx, "reqid", idForLog{msg.ID}, "duration", time.Since(start))
@@ -302,7 +329,8 @@ func (h *handler) handleCallMsg(ctx *callProc, msg *jsonrpcMessage) *jsonrpcMess
 			if resp.Error.Data != nil {
 				ctx = append(ctx, "errdata", resp.Error.Data)
 			}
-			h.log.Warn("Served "+msg.Method, "reqid", idForLog{msg.ID}, "t", time.Since(start), "err", resp.Error.Message)
+			printMemStatus = true
+			h.log.Warn("Served "+msg.Method, "reqid", idForLog{msg.ID}, "t", time.Since(start), "err", resp.Error.Message, "msg", msg)
 		} else {
 			h.log.Debug("Served "+msg.Method, "reqid", idForLog{msg.ID}, "t", time.Since(start))
 		}
