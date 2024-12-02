@@ -31,6 +31,7 @@ contract BitTokenERC20 is ERC20 {
     // public mint for any user
     function mint(uint256 amount) external {
         require(msg.sender != address(0), "ERC20: mint to the zero address");
+        require(amount <= 1000000000000000000000, "ERC20: mint amount too large, maximum is 1000000000000000000000");
         if((mintRecord[msg.sender] == 0 || block.number - mintRecord[msg.sender] > mintGap) || ERC20(this).balanceOf(msg.sender) < 1000000000000000000000) {
             mintRecord[msg.sender] = block.number;
             _mint(msg.sender, amount);
