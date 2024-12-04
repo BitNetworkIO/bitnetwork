@@ -53,7 +53,7 @@ docker-compose
     --build --detach
 ```
 
-A Makefile has been provided for convience. The following targets are available.
+A Makefile has been provided for convenience. The following targets are available.
 - make up
 - make down
 - make up-metrics
