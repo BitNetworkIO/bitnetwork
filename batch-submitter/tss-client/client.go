@@ -81,6 +81,6 @@ func (c *Client) GetSignStateBatch(BatchData common.SignStateRequest) ([]byte, e
 	if response.StatusCode() == 200 {
 		return response.Body(), nil
 	} else {
-		return nil, errors.New("fetch tss manager signature faill")
+		return nil, errors.New("fetch tss manager signature fail")
 	}
 }
