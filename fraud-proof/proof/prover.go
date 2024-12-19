@@ -393,7 +393,7 @@ func generateStartBlockState(backend Backend, ctx context.Context, startBlock *t
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	// The statedb here is the state at the end of the parent blcok
+	// The statedb here is the state at the end of the parent block
 	statedb, err := backend.StateAtBlock(ctx, startBlock, reexec, nil, true, false)
 	if err != nil {
 		return nil, nil, err
